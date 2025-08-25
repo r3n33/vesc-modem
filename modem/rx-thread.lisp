@@ -8,6 +8,8 @@
 
 (defun str-to-i28 (str) (to-i (str-to-i str)))
 
+; TODO: Replace all (to-i (str-to-i <value>)) with (str-to-i28 <value>)
+
 (defun prepare-state () (progn
     ; TODO: There may be more state variables that would benefit from a reset here
     (setassoc modem-state 'found-ok false)
@@ -355,6 +357,7 @@
 
     (if dev-debug-modem (puts (str-from-n bytes "CFSRFILE has %d bytes")))
 
+    (setassoc modem-state 'fs-rfile-data (bufcreate 0))
     (var pos 0)
     (loopwhile (< pos bytes) {
         (var to-read (- bytes pos))
@@ -363,9 +366,8 @@
         (var buf (bufcreate to-read))
         (var len (uart-read buf (buflen buf) nil nil 1.0))
         (if (> len 0) (progn
+            (append-buf (assoc modem-state 'fs-rfile-data) buf len)
             (setq pos (+ pos len))
-
-            (setassoc modem-state 'fs-rfile-data buf)
 
             (if dev-debug-modem (print (list len "cfsrfile <<" buf)))
         ) (if dev-debug-modem (print (list "cfsrfile << len was" len "retrying"))))

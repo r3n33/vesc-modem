@@ -8,6 +8,8 @@
     (head "5")
 ))
 
+; NOTE: This function needs exclusive access to the modem.
+;       In a threaded program guard with modem-mutex
 (defunret modem-http-request (server-address endpoint request-type) {
     (var content-type (rest-args 0))
     (var content (rest-args 1))
@@ -43,13 +45,11 @@
     ; Set body content
     (modem-cmd "AT+SHCPARA") ; Clear body content
     (if (and content content-len) {
-        (mutex-lock modem-mutex)
         (modem-cmd (str-merge "AT+SHBOD=" (str-from-n content-len) ",3000")) ; Allow 3 seconds to input content
         (if (modem-wait 'data-input-rdy 3) {
             (uart-write content)
             (modem-wait-ok 1) ; Wait up to 1 second for OK
         } (puts "error: modem-http-request data-input-rdy timeout"))
-        (mutex-unlock modem-mutex)
     })
     (modem-cmd (str-merge "AT+SHREQ=\"" endpoint "\"," (http-type-to-str request-type)) 1.0)
 
@@ -77,6 +77,10 @@
 (defun modem-http-post (address endpoint content) {
     (var len (if (rest-args 0) (rest-args 0) (str-len content)))
     (var content-type (if (rest-args 1) (rest-args 1) "application/json"))
+
+    (mutex-lock modem-mutex)
+    (setassoc modem-state 'shread-data nil)
+
     (var bytes (modem-http-request
         address
         endpoint
@@ -85,16 +89,24 @@
         content
         len
     ))
-    (var pos 0)
-    (loopwhile (< pos bytes) {
-        (var bytes-remaining (- bytes pos))
-        (var len (if (> bytes-remaining modem-rx-len) modem-rx-len bytes-remaining))
-        (var buf (modem-http-read (- bytes bytes-remaining) len 1 true))
-        (if buf {
-            (puts buf)
-            (setq pos (+ pos (str-len buf)))
+
+    (if (eq (type-of bytes) 'type-symbol) {
+        (puts (str-merge "modem-http-post: error: " (to-str bytes)))
+    } {
+        (var pos 0)
+        (loopwhile (< pos bytes) {
+            (var bytes-remaining (- bytes pos))
+            (var len (if (> bytes-remaining modem-rx-len) modem-rx-len bytes-remaining))
+            (var buf (modem-http-read (- bytes bytes-remaining) len 1 true))
+            (if buf {
+                (append-buf (assoc modem-state 'shread-data) buf len)
+                (setq pos (+ pos (str-len buf)))
+            })
         })
     })
+
     (modem-http-disconnect)
-    (assoc modem-state 'shreq-code)
+
+    (mutex-unlock modem-mutex)
+    (list (assoc modem-state 'shreq-code) (assoc modem-state 'shreq-data))
 })

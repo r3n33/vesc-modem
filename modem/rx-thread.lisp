@@ -393,15 +393,26 @@
 })
 
 (defun cgnsinf-helper (resp) {
-    ;+CGNSINF: <GNSS run status>,<Fix status>,<UTC date & Time>,
-    ;<Latitude>,<Longitude>,<MSL Altitude>,<Speed Over Ground>,
-    ;<Course Over Ground>,<Fix Mode>,<Reserved1>,<HDOP>,<PDOP>,
-    ;<VDOP>,<Reserved2>,<GNSS Satellites in View>,<Reserved3>,
-    ;<HPA>,<VPA>
-    (var vars (str-split (str-replace resp ",," ",-1,") ",")) ; TODO: Using str-replace to prevent varying length list
-    ; TODO: str-replace also has an oddity
-    ; (str-replace "a,,c,,,f,g,h" ",," ",-,")
-    ; > "a,-,c,-,,f,g,h"
+    ; +CGNSINF:
+    ; 0 <GNSS run status>
+    ; 1 <Fix status>
+    ; 2 <UTC date & Time>
+    ; 3 <Latitude>
+    ; 4 <Longitude>
+    ; 5 <MSL Altitude>
+    ; 6 <Speed Over Ground>
+    ; 7 <Course Over Ground>
+    ; 8 <Fix Mode>
+    ; 9 <Reserved1>
+    ; 10 <HDOP>
+    ; 11 <PDOP>
+    ; 12 <VDOP>
+    ; 13 <Reserved2>
+    ; 14 <GNSS Satellites in View>
+    ; 15 <Reserved3>
+    ; 16 <HPA>
+    ; 17 <VPA>
+    (var vars (str-split resp ","))
 
     (if dev-debug-modem (print (list (length vars) "cgnsinf" vars)))
 
@@ -420,15 +431,15 @@
         ; ...
         (var sats (ix vars 14))
 
-        (if fix-status (setassoc modem-gnss-state 'has-fix (eq fix-status "1")))
-        (if fix-mode (setassoc modem-gnss-state 'fix-mode (str-to-i28 fix-mode)))
-        (if latitude (setassoc modem-gnss-state 'latitude (str-to-f latitude)))
-        (if longitude (setassoc modem-gnss-state 'longitude (str-to-f longitude)))
-        (if altitude (setassoc modem-gnss-state 'altitude (str-to-f altitude)))
-        (if speed (setassoc modem-gnss-state 'speed (str-to-f speed)))
-        (if heading (setassoc modem-gnss-state 'heading (str-to-f heading)))
-        (if hdop (setassoc modem-gnss-state 'hdop (str-to-f hdop)))
-        (if sats (setassoc modem-gnss-state 'sats-in-view (str-to-i28 sats)))
+        (if (not-eq fix-status [0]) (setassoc modem-gnss-state 'has-fix (eq fix-status "1")))
+        (if (not-eq fix-mode [0]) (setassoc modem-gnss-state 'fix-mode (str-to-i28 fix-mode)))
+        (if (not-eq latitude [0]) (setassoc modem-gnss-state 'latitude (str-to-f latitude)))
+        (if (not-eq longitude [0]) (setassoc modem-gnss-state 'longitude (str-to-f longitude)))
+        (if (not-eq altitude [0]) (setassoc modem-gnss-state 'altitude (str-to-f altitude)))
+        (if (not-eq speed [0]) (setassoc modem-gnss-state 'speed (str-to-f speed)))
+        (if (not-eq heading [0]) (setassoc modem-gnss-state 'heading (str-to-f heading)))
+        (if (not-eq hdop [0]) (setassoc modem-gnss-state 'hdop (str-to-f hdop)))
+        (if (not-eq sats [0]) (setassoc modem-gnss-state 'sats-in-view (str-to-i28 sats)))
     })
 })
 

@@ -103,11 +103,3 @@
     (prepare-state)
     (modem-cmd (str-merge "AT+SMUNSUB=\"" topic "\""))
 })
-
-(defun mqtt-example-cb (topic msg) {
-    (if dev-debug-modem (print (list "mqtt-example-cb" topic msg)))
-
-    (match topic
-        ("v1/devices/me/attributes" (puts msg))
-    )
-})

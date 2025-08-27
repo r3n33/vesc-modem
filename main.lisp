@@ -2,8 +2,7 @@
 
 (def dev-modem-gnss-enable nil) ; TODO: Enabling GNSS will suspend use of GPRS
 
-(def dev-include-modem-tests t)
-(def dev-perform-modem-tests nil)
+(def dev-include-modem-examples t)
 
 (import "modem/hw-link.lisp" 'code-hw-specific)
 (read-eval-program code-hw-specific)
@@ -16,67 +15,79 @@
 (read-eval-program tcp-socket)
 (import "modem/tcp-hub.lisp" 'tcp-hub)
 (read-eval-program tcp-hub)
-(import "modem/file-download.lisp" 'file-download)
-(read-eval-program file-download)
+(import "modem/file-system.lisp" 'file-system)
+(read-eval-program file-system)
 (import "modem/gnss.lisp" 'modem-gnss)
 (read-eval-program modem-gnss)
 (import "modem/mqtt.lisp" 'code-mqtt)
 (read-eval-program code-mqtt)
-
-(if dev-include-modem-tests {
-    (import "modem/modem-tests.lisp" 'modem-tests)
-    (read-eval-program modem-tests)
-    (def dev-debug-modem t)
-    ;(def dev-debug-modem nil)
-})
-
-(import "thingsboard.lisp" 'code-things)
+(import "modem/http.lisp" 'modem-http)
+(read-eval-program modem-http)
+(import "modem/thingsboard.lisp" 'code-things)
 (read-eval-program code-things)
 
-(start-rx-thd)
-(if (init-modem) {
-    (modem-cmd "ATE0") ; Disable ECHO
-    (modem-cmd "AT+CMEE=2") ; Verbose errors
-    (apn-load)
-    (auto-activation)
-    (modem-ntp-sync)
-    (prepare-https)
+(if dev-include-modem-examples {
+    (import "examples/file-system.lisp" 'file-system-examples)
+    (read-eval-program file-system-examples)
 
-    (modem-tcp-close) ; Closing connection in case it was left open while debugging
+    (import "examples/gnss.lisp" 'gnss-examples)
+    (read-eval-program gnss-examples)
 
-    (if dev-modem-gnss-enable (modem-gnss-enable))
+    (import "examples/http.lisp" 'http-examples)
+    (read-eval-program http-examples)
 
-    (print-rssi (modem-rssi))
+    (import "examples/thingsboard.lisp" 'thingsboard-examples)
+    (read-eval-program thingsboard-examples)
 
-    (if dev-perform-modem-tests {
-        (test-http) ; HTTP SH Command Examples
-        (test-https) ; HTTPS SH Command Examples
-        (test-tcp-socket) ; TCP Socket Example
+    (import "examples/tcp-socket.lisp" 'tcp-socket-examples)
+    (read-eval-program tcp-socket-examples)
+})
 
-        (modem-save-file "https://raw.githubusercontent.com/vedderb/vesc_express/refs/heads/main/README.md" "vesc.md" 'blocking) ; Download file to flash example
-        (puts (str-from-n (modem-file-size "vesc.md") "Downloaded file size: %d bytes"))
+(start-rx-thd) ; The RX thread processes incoming data from the modem
 
-        (print-file-contents "vesc.md") ; Read file from flash example
+(modem-debug true)
+(if (init-modem)
+    (progn
+        (modem-debug false)
+        (modem-cmd "ATE0") ; Disable ECHO
+        (modem-cmd "AT+CMEE=2") ; Verbose errors
+        (apn-load)
+        (auto-activation)
+        (modem-ntp-sync)
+        (prepare-https)
 
-        (if dev-modem-gnss-enable {
-            (modem-gnss-update)
-            (print modem-gnss-state)
-            (gnss-lat-lon)
-            (gnss-height)
-            (gnss-speed)
-            (gnss-date-time)
-        })
+        (modem-tcp-close) ; Closing connection in case it was left open while debugging
 
-        (print-modem-state)
+        (if dev-modem-gnss-enable
+            (modem-gnss-enable)
+            (modem-gnss-disable)
+        )
 
-        ;(spawn things-test-mqtt)
-        ;(def run-test nil)
-
-        ;(mqtt-set-callback mqtt-example-cb)
-        ;(mqtt-subscribe "v1/devices/me/attributes")
-        ;(mqtt-unsubscribe "v1/devices/me/attributes")
+        (print-rssi (modem-rssi))
+    )
+    (loopwhile t {
+        (puts "init-modem failed. please enable debugging and try again")
+        (sleep 5)
     })
+)
 
-    ;(spawn activate-tcp-hub)
-    ;(exit-tcp-hub)
+(if dev-include-modem-examples {
+    (example-save-file)
+    (example-read-file)
+
+    (example-gnss-update)
+
+    (example-http-get)
+    (example-https-post)
+
+    (example-tcp-socket)
+
+    (example-tcp-hub-connect)
+    (sleep 5)
+    (example-tcp-hub-disconnect)
+
+    (example-thingsboard-mqtt-publish)
+    (example-thingsboard-mqtt-subscribe)
+    (sleep 5)
+    (example-thingsboard-mqtt-unsubscribe)
 })

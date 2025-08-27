@@ -1,9 +1,5 @@
 @const-start
 
-;(defun modem-fs-size () {
-;    (modem-cmd "AT+CFSGFRS?") ; Get the Size of File System
-;})
-
 (defun modem-file-size (file-name) {
     ; AT+CFSGFIS ; Get File Size
     (setassoc modem-state 'fs-file-size nil)
@@ -55,18 +51,25 @@
 })
 
 (defun modem-del-file (file-name) {
-    ; TODO: Make it so
     ; AT+CFSDFILE ; Delete the File from the Flash
+    (modem-cmd "AT+CFSINIT")
+    (var res (modem-cmd (str-merge "AT+CFSDFILE=0,\"" file-name "\"")))
+    (modem-cmd "AT+CFSTERM")
+    res
 })
 
 (defun modem-mv-file (file-name-old file-name-new) {
-    ; TODO: Make it so
     ; AT+CFSREN ; Rename a File
+    (modem-cmd "AT+CFSINIT")
+    (var res (modem-cmd (str-merge "AT+CFSREN=0,\"" file-name-old "\",\"" file-name-new "\"")))
+    (modem-cmd "AT+CFSTERM")
+    res
 })
 
 (defun modem-read-file (file-name) {
     (var start-pos (if (rest-args 0) (rest-args 0) 0))
     (var read-len (if (rest-args 1) (rest-args 1) modem-rx-len))
+    (var as-str (rest-args 2))
     (var tout 5)
 
     ; AT+CFSRFILE=<index>,<filename>,<mode>,<readbytes>,<position>
@@ -83,6 +86,11 @@
     (modem-cmd "AT+CFSINIT")
     (modem-cmd (str-merge "AT+CFSRFILE=0," file-name ",1," (str-from-n read-len) "," (str-from-n start-pos)) tout)
     (modem-cmd "AT+CFSTERM")
-})
 
-;(modem-save-file "https://raw.githubusercontent.com/vedderb/vesc_express/refs/heads/main/README.md" "vesc.md" 'blocking)
+    ; Null terminate if as-str and not already terminated
+    (if (and as-str (not-eq (bufget-u8 (assoc modem-state 'fs-rfile-data) (- (buflen (assoc modem-state 'fs-rfile-data)) 1)) [0]))
+        (append-buf (assoc modem-state 'fs-rfile-data) [0 0] 1))
+
+    ; Return file data from modem-state
+    (assoc modem-state 'fs-rfile-data)
+})

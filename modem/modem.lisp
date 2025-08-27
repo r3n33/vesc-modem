@@ -112,16 +112,8 @@
     ))
 ))
 
-(defun print-file-contents (file-name) {
-    (var size (modem-file-size file-name))
-    (if size {
-        (var pos 0)
-        (loopwhile (< pos size) {
-            (modem-read-file file-name pos)
-            (puts (assoc modem-state 'fs-rfile-data))
-            (setq pos (+ pos modem-rx-len))
-        })
-    })
+(defun modem-debug (enable) {
+    (setq dev-debug-modem enable)
 })
 
 ; Send a command to the modem and wait for an "OK" response
@@ -166,15 +158,25 @@
     })
 })
 
-; Less than ideal configuration used to establish SSL connections
+; Configuration used to establish SSL connections
 (defun prepare-https () {
-    ; TODO: Check/Set Clock or ignore RTC time
-        ; (modem-gnss-update)
-        ; (modem-ntp-sync)
-        (modem-cmd "AT+CSSLCFG=\"ignorertctime\",1,1")
+    (if (assoc modem-state 'time-synced)
+        {
+            (modem-cmd "AT+CCLK?") ; Check current time
+            ; Do not ignore time
+            (modem-cmd "AT+CSSLCFG=\"ignorertctime\",0,0")
+            (modem-cmd "AT+CSSLCFG=\"ignorertctime\",1,0")
+        }
+        {
+            ; Ignore cert time
+            (modem-cmd "AT+CSSLCFG=\"ignorertctime\",0,1")
+            (modem-cmd "AT+CSSLCFG=\"ignorertctime\",1,1")
+        }
+    )
     (modem-cmd "AT+CSSLCFG=\"sslversion\",1,3")
-    ;AT+CSSLCFG="sni",1,"domain.com" ; Server Name Indication - declare which domain cert were looking for
-    (modem-cmd "AT+CSSLCFG=\"sni\",1,0")
+    ; AT+CSSLCFG="sni",1,"domain.com" ; Server Name Indication - declare which domain cert were looking for
+    (modem-cmd "AT+CSSLCFG=\"sni\",0,\"domain.com\"")
+    (modem-cmd "AT+CSSLCFG=\"sni\",1,\"domain.com\"")
     (modem-cmd "AT+SHSSL=1,\"\"")
 })
 

@@ -81,6 +81,7 @@
     (mutex-lock modem-mutex)
     (setassoc modem-state 'shread-data nil)
 
+    (var resp (bufcreate 0))
     (var bytes (modem-http-request
         address
         endpoint
@@ -99,7 +100,7 @@
             (var len (if (> bytes-remaining modem-rx-len) modem-rx-len bytes-remaining))
             (var buf (modem-http-read (- bytes bytes-remaining) len 1 true))
             (if buf {
-                (append-buf (assoc modem-state 'shread-data) buf len)
+                (append-buf resp buf len)
                 (setq pos (+ pos (str-len buf)))
             })
         })
@@ -108,5 +109,5 @@
     (modem-http-disconnect)
 
     (mutex-unlock modem-mutex)
-    (list (assoc modem-state 'shreq-code) (assoc modem-state 'shreq-data))
+    (list (assoc modem-state 'shreq-code) resp)
 })

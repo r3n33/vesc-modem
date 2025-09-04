@@ -111,3 +111,27 @@
     (mutex-unlock modem-mutex)
     (list (assoc modem-state 'shreq-code) resp)
 })
+
+(defun modem-http-get (address endpoint) {
+    (mutex-lock modem-mutex)
+
+    (var resp (bufcreate 0))
+    (var bytes (modem-http-request address endpoint 'get))
+
+    (if (eq (type-of bytes) 'type-i) {
+        (var pos 0)
+        (loopwhile (< pos bytes) {
+            (var bytes-remaining (- bytes pos))
+            (var len (if (> bytes-remaining modem-rx-len) modem-rx-len bytes-remaining))
+            (var buf (modem-http-read (- bytes bytes-remaining) len 1 true))
+            (if buf {
+                (append-buf resp buf len)
+                (setq pos (+ pos (str-len buf)))
+            })
+        })
+    })
+
+    (modem-http-disconnect)
+    (mutex-unlock modem-mutex)
+    (list (assoc modem-state 'shreq-code) resp)
+})

@@ -109,6 +109,8 @@
     (modem-http-disconnect)
 
     (mutex-unlock modem-mutex)
+
+    (if (= (buflen resp) 0) (setq resp nil))
     (list (assoc modem-state 'shreq-code) resp)
 })
 
@@ -133,5 +135,7 @@
 
     (modem-http-disconnect)
     (mutex-unlock modem-mutex)
+
+    (if (= (buflen resp) 0) (setq resp nil))
     (list (assoc modem-state 'shreq-code) resp)
 })
